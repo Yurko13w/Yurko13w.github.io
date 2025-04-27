@@ -1,0 +1,554 @@
+<!-- 主页 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>学生管理系统</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="main.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding: 10px;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: auto;
+        font-size: 16px;
+    }
+
+    #studentTable {
+        width: 100%;
+        max-width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 1em;
+    }
+
+    .fixed-column {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 1em;
+    }
+
+    .id-column { width: 15%; }
+    .name-column { width: 15%; }
+    .sex-column { width: 10%; }
+    .contact-column { width: 20%; }
+    .status-column { width: 15%; }
+    .action-column { width: 10%; }
+    
+    .grade-cell {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        min-width: 15%;
+        max-width: 25%;
+        height: auto;
+        padding: 5px;
+        vertical-align: top;
+        font-size: 1em;
+    }
+
+    button {
+        font-size: 1em;
+        padding: 8px;
+    }
+
+    /* 移动设备适配 */
+    @media screen and (max-width: 768px) {
+        body {
+            padding: 5px;
+            font-size: 14px;
+        }
+
+        .id-column { width: 20%; }
+        .name-column { width: 20%; }
+        .sex-column { width: 15%; }
+        .contact-column { width: 25%; }
+        .status-column { width: 20%; }
+        .action-column { width: 15%; }
+        
+        .grade-cell {
+            min-width: 20%;
+            max-width: 30%;
+        }
+
+        button {
+            padding: 5px;
+            font-size: 0.9em;
+        }
+    }
+
+    /* 小屏幕手机适配 */
+    @media screen and (max-width: 480px) {
+        body {
+            font-size: 12px;
+        }
+
+        .id-column { width: 25%; }
+        .name-column { width: 25%; }
+        .sex-column { width: 20%; }
+        .contact-column { width: 30%; }
+        .status-column { width: 25%; }
+        .action-column { width: 20%; }
+        
+        .grade-cell {
+            min-width: 25%;
+            max-width: 35%;
+        }
+
+        button {
+            padding: 3px;
+            font-size: 0.8em;
+        }
+    }
+
+    /* 大屏幕适配 */
+    @media screen and (min-width: 1200px) {
+        body {
+            font-size: 18px;
+        }
+
+        button {
+            font-size: 1.1em;
+            padding: 10px;
+        }
+    }
+</style>
+</head>
+<body>
+<div>
+<h1 class="shu">
+学生管理系统
+</h1>
+<br>
+<div class="help-container ">
+    <div class="help-header" onclick="toggleHelp()">
+        <h4>如何使用该系统？ <span class="arrow">▼</span></h4>
+    </div>
+    <ul class="help-content" id="helpContent">
+        <li>
+            导入数据：导入最基础的学生数据，需按照顺序包含学号、姓名、性别、联系方式。
+        </li>
+        <p>tips：双击即可修改对应学生信息内容</p>
+        <ol>
+            <li>
+                随时可以导出学生的数据，无需联网使用
+            </li>
+        </ol>
+    </ul>
+</div>
+</div>
+
+<script>
+function toggleHelp() {
+    const content = document.getElementById('helpContent');
+    const arrow = document.querySelector('.arrow');
+    content.classList.toggle('show');
+    arrow.classList.toggle('up');
+}
+</script>
+
+<form id="studentForm" class="bottom">
+<button type="button" onclick="document.getElementById('fileInput').click()">导入数据</button>
+<button type="button" onclick="location.href='add_stu.html'">添加学生</button>
+<button type="button" onclick="exportData()">导出数据</button>
+<button type="button" onclick="clearAllStudents()" style="background-color: #ff4444; color: white;">清空数据</button>
+<input type="file" id="fileInput" hidden accept=".xlsx,.xls" onchange="handleImport(event)">
+</form>
+
+<script>
+function handleImport(e) {
+const file = e.target.files[0];
+const reader = new FileReader();
+reader.onload = (e) => {
+const data = new Uint8Array(e.target.result);
+const workbook = XLSX.read(data, {type: 'array'});
+const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+jsonData.slice(1).forEach(row => {
+if (row.length >= 4) {
+students.push({
+id: String(row[0]),
+name: String(row[1]),
+sex: String(row[2]),
+contact: String(row[3]), 
+major: '未请假',
+'高一': { value: '' },
+'高二': { value: '' },
+'高三': { value: '' }
+});
+}
+});
+
+updateLocalStorage();
+renderTable();
+document.getElementById('fileInput').value = ''; 
+};
+reader.readAsArrayBuffer(file);
+}
+</script>
+
+<!-- 在表格上方添加搜索控件 -->
+<table id="studentTable">
+<thead>
+<tr>
+<th colspan="6">
+<div style="margin: 10px 0;">
+<input type="text" id="searchInput" placeholder="输入学号或姓名" onkeypress="if(event.key === 'Enter') searchStudents()">
+<button onclick="searchStudents()">搜索</button>
+<button onclick="clearSearch()">清除</button>
+</div>
+</th>
+</tr>
+<tr>
+<th onclick="sortStudents('id')">学号
+<span id="sortIcon">▲▼</span>
+</th>
+<th>姓名</th>
+<th>性别</th>
+<th>联系方式</th>
+<th>请假状态</th>
+<th>高一</th>
+<th>高二</th>
+<th>高三</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<script>
+let students = JSON.parse(localStorage.getItem('students') || '[]');
+let sortOrder = 'asc';
+let isSearchActive = false; // 添加搜索状态标记
+
+// 修改搜索函数以只高亮一个匹配结果
+function searchStudents() {
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    
+    if (keyword === '') {
+        // 如果搜索框为空，清除所有高亮并设置搜索为非激活状态
+        students.forEach(student => student.isHighlight = false);
+        isSearchActive = false;
+    } else {
+        // 激活搜索状态
+        isSearchActive = true;
+        // 先清除所有高亮
+        students.forEach(student => student.isHighlight = false);
+        
+        // 先尝试通过学号精确匹配
+        const foundByExactId = students.find(student => 
+            student.id.toLowerCase() === keyword
+        );
+        
+        if (foundByExactId) {
+            // 如果找到精确的学号匹配，只高亮这一个
+            foundByExactId.isHighlight = true;
+        } else {
+            // 如果没找到精确的学号匹配，尝试通过姓名精确匹配
+            const foundByExactName = students.find(student => 
+                student.name.toLowerCase() === keyword
+            );
+            
+            if (foundByExactName) {
+                // 如果找到精确的姓名匹配，只高亮这一个
+                foundByExactName.isHighlight = true;
+            } else {
+                // 如果没有精确匹配，尝试部分匹配，但只高亮第一个匹配的结果
+                const foundByPartial = students.find(student => 
+                    student.id.toLowerCase().includes(keyword) || 
+                    student.name.toLowerCase().includes(keyword)
+                );
+                
+                if (foundByPartial) {
+                    foundByPartial.isHighlight = true;
+                }
+            }
+        }
+    }
+    
+    renderTable();
+}
+
+// 清除搜索高亮的方法
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    students.forEach(student => student.isHighlight = false);
+    isSearchActive = false; // 重置搜索状态
+    renderTable();
+}
+
+// 统一的渲染表格函数
+function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = students.map(student => `
+        <tr ${isSearchActive && student.isHighlight ? 'style="background-color: yellow;"' : ''}>
+            <!-- 固定列部分 -->
+            <td class="fixed-column id-column" onclick="showEditTip()" ondblclick="handleCellEdit('${student.id}', 'id')">${student.id}</td>
+            <td class="fixed-column name-column" onclick="showEditTip()" ondblclick="handleCellEdit('${student.id}', 'name')">${student.name}</td>
+            <td class="fixed-column sex-column" onclick="showEditTip()" ondblclick="handleCellEdit('${student.id}', 'sex')">${student.sex}</td>
+            <td class="fixed-column contact-column" onclick="showEditTip()" ondblclick="handleCellEdit('${student.id}', 'contact')">${student.contact}</td>
+            <td class="fixed-column status-column" onclick="showEditTip()" 
+                ondblclick="handleCellEdit('${student.id}', 'major')"
+                style="${student.major === '请假中' ? 'color: green;' 
+                    : student.major === '未销假' ? 'color: red;' : ''}">
+                ${student.major}
+            </td>
+            
+            <!-- 动态列部分 -->
+            ${Array.from(document.querySelectorAll('#studentTable th:not(:last-child)'))
+                .slice(5) // 跳过前5个固定列
+                .map(th => {
+                    const colName = th.textContent;
+                    return `
+                        <td class="grade-cell" onclick="showEditTip()" ondblclick="handleCustomColumnEdit('${student.id}', '${colName}')">
+                            ${student[colName]?.value ?? ''}
+                        </td>
+                    `;
+                }).join('')}
+            
+            <td class="fixed-column action-column">
+                <button onclick="deleteStudent('${student.id}')">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function handleCellEdit(studentId, field) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    const cell = event.target;
+    const originalValue = student[field];
+    let input;
+    if (field === 'sex') {
+        input = document.createElement('select');
+        input.innerHTML = `
+            <option value="女" ${originalValue === '女' ? 'selected' : ''}>女</option>
+            <option value="男" ${originalValue === '男' ? 'selected' : ''}>男</option>
+        `;
+    } else if (field === 'contact') {
+        input = document.createElement('input');
+        input.type = 'tel';
+        // 移除 pattern 验证以支持强制修改
+        input.value = originalValue;
+    } else if (field === 'major') {
+        input = document.createElement('select');
+        input.innerHTML = `
+            <option value="未请假" ${originalValue === '未请假' ? 'selected' : ''}>未请假</option>
+            <option value="请假中" ${originalValue === '请假中' ? 'selected' : ''}>请假中</option>
+            <option value="未销假" ${originalValue === '未销假' ? 'selected' : ''}>未销假</option>
+        `;
+    } else {
+        input = document.createElement('input');
+        input.type = 'text';
+        input.value = originalValue;
+        // 学号字段添加强制修改逻辑
+        if (field === 'id') input.setAttribute('data-original', originalValue);
+    }
+
+    const save = () => {
+        // 强制保存修改（即使验证失败）
+        if (field === 'id' && input.value !== input.dataset.original) {
+            if (students.some(s => s.id === input.value)) {
+                alert('学号已存在！');
+                return;
+            }
+        }
+        student[field] = input.value;
+        updateLocalStorage();
+        renderTable();
+    };
+
+    input.onblur = save;
+    input.onkeypress = (e) => e.key === 'Enter' && save();
+    cell.innerHTML = '';
+    cell.appendChild(input);
+    input.focus();
+}
+
+function updateLocalStorage() {
+    localStorage.setItem('students', JSON.stringify(students));
+}
+
+function handleStatusDoubleClick(studentId, currentStatus) {
+    const statusOptions = ['未请假', '请假中', '未销假'];
+    const select = document.createElement('select');
+    select.innerHTML = statusOptions.map(opt => 
+        `<option value="${opt}" ${opt === currentStatus ? 'selected' : ''}>${opt}</option>`
+    ).join('');
+    select.onchange = function() {
+        const student = students.find(s => s.id === studentId);
+        if (student) {
+            student.major = this.value;
+            updateLocalStorage();
+            renderTable();
+        }
+    };
+    const cell = event.target;
+    cell.innerHTML = '';
+    cell.appendChild(select);
+    select.focus();
+}
+
+function exportData() {
+    // 获取所有动态列标题（跳过前5个固定列和最后1个操作列）
+    const dynamicColumns = Array.from(document.querySelectorAll('#studentTable th:nth-child(n+6):not(:last-child)'))
+        .map(th => th.textContent);
+
+    // 创建工作表
+    const ws = XLSX.utils.json_to_sheet(students.map(student => {
+        const baseData = {
+            "学号": student.id,
+            "姓名": student.name,
+            "性别": student.sex,
+            //"联系方式": student.contact,
+            "请假状态": student.major
+        };
+        
+        // 添加动态列数据
+        dynamicColumns.forEach(col => {
+            baseData[col] = student[col]?.value ?? '';
+        });
+
+        return baseData;
+    }));
+    
+    // 创建工作簿并添加工作表
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "学生数据");
+    // 生成Excel文件并下载
+    XLSX.writeFile(wb, `学生数据_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function deleteStudent(studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (confirm(`确定要删除学号为"${studentId}"，姓名为"${student.name}"的学生信息吗？此操作不可恢复！`)) {
+        students = students.filter(student => student.id !== studentId);
+        updateLocalStorage();
+        renderTable();
+    }
+}
+
+function showEditTip() {
+    if (!window.editTipShown) {
+        alert('双击即可修改对应学生信息内容');
+        window.editTipShown = true;
+    }
+}
+
+function sortStudents(field) {
+    sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    document.getElementById('sortIcon').innerHTML = sortOrder === 'asc' ? '▲' : '▼';
+    students.sort((a, b) => {
+        // 针对学号的特殊排序处理
+        if (field === 'id') {
+            const numA = parseInt(a.id);
+            const numB = parseInt(b.id);
+            return sortOrder === 'asc' ? numA - numB : numB - numA;
+        }
+        // 其他字段保持原排序逻辑
+        if (sortOrder === 'asc') {
+            return a[field].localeCompare(b[field]);
+        }
+        return b[field].localeCompare(a[field]);
+    });
+    renderTable();
+}
+
+// 修改处理函数
+function handleModalSubmit(e) {
+    e.preventDefault();
+    const newStudent = {
+        id: document.getElementById('modalStudentId').value,
+        name: document.getElementById('modalName').value,
+        sex: document.getElementById('modalSex').value,
+        major: document.getElementById('modalMajor').value,
+        '高一': { value: '' },
+        '高二': { value: '' },
+        '高三': { value: '' }
+    };
+    // 学号验证
+    const isDuplicate = students.some(s => s.id === newStudent.id);
+    if (isDuplicate && !currentEditId) {
+        document.getElementById('idError').style.display = 'inline';
+        return false;
+    }
+    if (currentEditId) {
+        // 更新逻辑
+        const index = students.findIndex(s => s.id === currentEditId);
+        students[index] = newStudent;
+    } else {
+        // 新增逻辑
+        students.push(newStudent);
+    }
+
+    updateLocalStorage();
+    renderTable();
+    closeModal();
+    return false;
+}
+
+// 添加关闭模态框函数
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+    document.getElementById('idError').style.display = 'none';
+}
+
+function clearAllStudents() {
+    if (confirm('确定要删除所有学生信息吗？此操作不可恢复！')) {
+        students = [];
+        updateLocalStorage();
+        renderTable();
+    }
+}
+
+function handleCustomColumnEdit(studentId, columnName) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    // Initialize the column if it doesn't exist
+    if (!student[columnName]) {
+        student[columnName] = { value: '' };
+    }
+    
+    const cell = event.target;
+    const originalValue = student[columnName].value;
+    
+    const textarea = document.createElement('textarea');
+    textarea.value = originalValue;
+    textarea.style.width = '100%';
+    textarea.style.height = '100%';
+    textarea.style.minHeight = '50px';
+    textarea.style.resize = 'vertical';
+    
+    const save = () => {
+        student[columnName].value = textarea.value;
+        updateLocalStorage();
+        renderTable();
+    };
+    
+    textarea.onblur = save;
+    textarea.onkeypress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            save();
+        }
+    };
+    cell.innerHTML = '';
+    cell.appendChild(textarea);
+    textarea.focus();
+}
+</script>
+
+
+<script>
+    renderTable();
+</script>
+
+<p class="author">yxq</p>
+</body>
+</html>

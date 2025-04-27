@@ -1,0 +1,59 @@
+<!-- 添加学生 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>添加学生</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>添加学生信息</h1>
+    <form id="addForm">
+        <div class="form-group">
+            <label>学号：</label>
+            <input type="text" id="newStudentId" required>
+        </div>
+        <div class="form-group">
+            <label>姓名：</label>
+            <input type="text" id="newName" required>
+        </div>
+        <div class="form-group">
+            <label>性别：</label>
+            <select id="newSex" required>
+                <option value="女" selected>女</option>
+                <option value="男">男</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>联系方式：</label>
+            <input type="tel" id="newContact" required pattern="[0-9]{11}">
+        </div>
+        <button type="button" onclick="saveStudent()">保存</button>
+        <button type="button" onclick="location.href='index.html'">返回</button>
+        <p class="author">yxq</p>
+    </form>
+
+    <script>
+        function saveStudent() {
+            const students = JSON.parse(localStorage.getItem('students') || '[]');
+            
+            const newStudent = {
+                id: document.getElementById('newStudentId').value,
+                name: document.getElementById('newName').value,
+                sex: document.getElementById('newSex').value,
+                contact: document.getElementById('newContact').value,
+                major: '未请假'
+            };
+
+            if (students.some(s => s.id === newStudent.id)) {
+                alert('学号已存在！');
+                return;
+            }
+
+            students.push(newStudent);
+            localStorage.setItem('students', JSON.stringify(students));
+            location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
